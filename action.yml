@@ -20,6 +20,10 @@ inputs:
     default: "You are an expert software engineer. Review this git diff for bugs,
       security, and style. Provide feedback in Markdown. If okay,
       approve PR including the text 'RESUME: APPROVE' to end of your response."
+  review_language:
+    description: "Language for the AI (e.g. 'English', 'Spanish')"
+    required: false
+    default: "English"
   approval_required:
     description: "Require approval from the reviewer (uses --approve or --request-changes)"
     required: false
@@ -61,7 +65,7 @@ runs:
         GOOGLE_GENAI_USE_VERTEXAI: ${{ inputs.use_vertexapi_key }}
         GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key || '' }}
       run: |
-        gemini prompt "${{ inputs.review_prompt }}" pr_diff.txt > review_result.md
+        gemini prompt "${{ inputs.review_prompt }}. Use ${{ inputs.review_language }} language for answer." pr_diff.txt > review_result.md
 
         if [ "${{ inputs.approval_required }}" == "true" ]; then
           if grep -iq "RESUME: APPROVE" review_result.md; then
