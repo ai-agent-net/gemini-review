@@ -97,3 +97,8 @@ runs:
             --body-file review_result.md
         fi
       shell: bash
+
+branding:
+  icon: 'code'
+  color: 'blue'
+  
