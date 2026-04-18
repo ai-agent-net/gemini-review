@@ -1,0 +1,102 @@
+name: 'Gemini AI PR Reviewer'
+description: 'Full-cycle AI code review including checkout'
+author: 'Val-d-emar'
+
+inputs:
+  gemini_api_key:
+    description: 'API Key from Google AI Studio (Simple AI or Vertex AI)'
+    required: true
+  use_vertexapi_key:
+    description: 'Using API VERTEX AI Key from Google AI Studio'
+    required: false
+    default: 'false'    
+  github_token:
+    description: 'GitHub PAT for the reviewer account (needs repo scope)'
+    required: false
+    default: ${{ secrets.GITHUB_TOKEN }}
+  review_prompt:
+    description: 'Custom prompt for the AI'
+    required: false
+    default: "You are an expert software engineer. Review this git diff for bugs, security, and style. Provide feedback in Markdown. If okay, say LGTM!."
+  approval_required:
+    description: 'Require approval from the reviewer'
+    required: false
+    default: 'false'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Code
+      env:
+        GITHUB_TOKEN: ${{ inputs.inputs.github_token }}
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github_token }}
+
+    - name: Authenticate to Google Cloud
+      if: ${{ inputs.use_vertexapi_key == 'true' }}
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ gemini_api_key }}'
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+
+    - name: Install Gemini CLI
+      run: npm install -g @google/gemini-cli
+      shell: bash
+
+    - name: Generate PR Diff
+      run: |
+        git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr_diff.txt
+      shell: bash
+
+    - name: Run Gemini Review
+      env:        
+        GOOGLE_GENAI_USE_VERTEXAI: ${{ inputs.gemini_usevertexapi_key }}
+      run: |
+        if [ inputs.gemini_usevertexapi_key == 'false' ] ; then
+          GEMINI_API_KEY=${{ inputs.gemini_api_key }}
+        fi
+        gemini prompt "${{ inputs.review_prompt }}" pr_diff.txt > review_result.md
+        RESUME=$(grep -i "RESUME: APROVE" review_result.md | wc -l)
+        if [ "${{ inputs.approval_required }}" == "true" ]; then
+          if [ "$RESUME" == "APROVE" ]; then
+            echo "APROVE" >> review_status.txt
+          else
+            echo "REJECT" >> review_status.txt
+          fi
+        fi
+
+      shell: bash
+
+    - name: Submit PR Review
+      env:
+        GITHUB_TOKEN: ${{ inputs.inputs.github_token }}
+      run: |
+        if [ "${{ inputs.approval_required }}" == "true" ]; then
+          RESUME=$(cat review_status.txt)
+          if [ "$RESUME" == "APROVE" ] ; then
+            gh pr review ${{ github.event.pull_request.number }} \
+              -R ${{ github.repository }} \
+              --comment \
+              --body-file review_result.md \
+              --approv
+          else
+            gh pr review ${{ github.event.pull_request.number }} \
+              -R ${{ github.repository }} \
+              --comment \
+              --body-file review_result.md \
+              --request-changes
+          fi
+        else
+          gh pr review ${{ github.event.pull_request.number }} \
+            -R ${{ github.repository }} \
+            --comment \
+            --body-file review_result.md
+        fi
+
+      shell: bash
