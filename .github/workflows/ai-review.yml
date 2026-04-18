@@ -21,4 +21,5 @@ jobs:
       with:
         gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
         github_token: ${{ secrets.AI_AGENT_PAT }}
+        approval_required: true
         
