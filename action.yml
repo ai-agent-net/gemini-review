@@ -59,8 +59,7 @@ runs:
     - name: Run Gemini Review
       env:
         GOOGLE_GENAI_USE_VERTEXAI: ${{ inputs.use_vertexapi_key }}
-        GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key
-          || '' }}
+        GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key || '' }}
       run: |
         gemini prompt "${{ inputs.review_prompt }}" pr_diff.txt > review_result.md
 
@@ -77,7 +76,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
-        if[ "${{ inputs.approval_required }}" == "true" ]; then
+        if [ "${{ inputs.approval_required }}" == "true" ]; then
           RESUME=$(cat review_status.txt)
           if [ "$RESUME" == "APPROVE" ]; then
             gh pr review ${{ github.event.pull_request.number }} \
