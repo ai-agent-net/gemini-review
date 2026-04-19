@@ -6,7 +6,7 @@ on:
 
 jobs:
   review-code:
-    if: github.event.requested_reviewer.login == 'ai-agent-net'
+    if: github.event.requested_reviewer.login == 'ai-agent-net' || github.event.assignee.login == 'ai-agent-net'
     runs-on: ubuntu-latest
     
     permissions:
