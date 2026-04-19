@@ -50,6 +50,7 @@ jobs:
 | `approval_required` | No       | `'false'`             | If `'true'`, the Action will use `gh pr review --approve` or `--request-changes`. To approve, the AI must output `"RESUME: APPROVE"` in its response. |
 | `review_prompt`     | No       | _(Default prompt)_    | Custom instructions for the Gemini model.                                                                                                             |
 | `review_language`   | No       | `English`             | Custom language for the Gemini model                                                                                                                  |
+| `comment_title`     | No       | `# 🤖 AI Review`      | A unique title to prepend to the review, used to find old comments for editing                                                                        |
 
 ## License
 
@@ -103,6 +104,7 @@ jobs:
 | `approval_required` | Нет         | `'false'`             | Если `'true'`, ИИ будет ставить официальный статус Approve или Request Changes. Для аппрува ИИ должен написать `"RESUME: APPROVE"` в тексте ответа. |
 | `review_prompt`     | Нет         | _(Базовый промпт)_    | Ваша кастомная инструкция для ИИ (prompt).                                                                                                          |
 | `review_language`   | No          | `English`             | Пользовательский язык для модели                                                                                                                    |
+| `comment_title`     | No          | `# 🤖 AI Review`      | Уникальный заголовок для добавления к отзыву, используется для поиска старых комментариев для редактирования                                                                      |
 
 ## Лицензия
 

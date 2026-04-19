@@ -33,12 +33,6 @@ inputs:
     description: "Require approval from the reviewer (uses --approve or --request-changes)"
     required: false
     default: "false"
-  comment_mode:
-    description:
-      "For simple comments (approval_required: false), it always tries to
-      edit the existing one."
-    required: false
-    default: "new"
   comment_title:
     description:
       "A unique title to prepend to the review, used to find old comments
