@@ -77,7 +77,7 @@ runs:
         GOOGLE_GENAI_USE_VERTEXAI: ${{ inputs.use_vertexapi_key }}
         GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key || '' }}
       run: |
-        gemini prompt "${{ inputs.review_prompt }}. Use ${{ inputs.review_language }} language for answer." pr_diff.txt > raw_review.md
+        gemini prompt "Use ${{ inputs.review_language }} language for answer. ${{ inputs.review_prompt }}" pr_diff.txt > raw_review.md
         echo -e "${{ inputs.comment_title }}\n\n$(cat raw_review.md)" > review_result.md
 
         if [ "${{ inputs.approval_required }}" == "true" ]; then
