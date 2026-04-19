@@ -124,7 +124,7 @@ runs:
           # Если нашли - редактируем его, иначе - создаем новый
           if [ -n "$COMMENT_ID" ]; then
             echo "Found existing comment ID: $COMMENT_ID. Editing..."
-            gh pr comment ${{ github.event.pull_request.number }} --edit $COMMENT_ID --body-file review_result.md
+            gh pr comment ${{ github.event.pull_request.number }} --edit-last $COMMENT_ID --body-file review_result.md
           else
             echo "No existing comment found. Creating a new one..."
             gh pr comment ${{ github.event.pull_request.number }} --body-file review_result.md
