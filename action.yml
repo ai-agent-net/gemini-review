@@ -3,9 +3,9 @@ description: "Full-cycle AI code review including checkout"
 author: "Val-d-emar"
 
 branding:
-  icon: 'code'
-  color: 'blue'
-  
+  icon: "code"
+  color: "blue"
+
 inputs:
   gemini_api_key:
     description: "API Key from Google AI Studio OR Service Account JSON for Vertex AI"
@@ -75,7 +75,8 @@ runs:
     - name: Run Gemini Review
       env:
         GOOGLE_GENAI_USE_VERTEXAI: ${{ inputs.use_vertexapi_key }}
-        GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key || '' }}
+        GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key
+          || '' }}
       run: |
         gemini prompt "Use ${{ inputs.review_language }} language for answer. ${{ inputs.review_prompt }}" pr_diff.txt > raw_review.md
         echo -e "${{ inputs.comment_title }}\n\n$(cat raw_review.md)" > review_result.md
@@ -124,7 +125,10 @@ runs:
           # Если нашли - редактируем его, иначе - создаем новый
           if [ -n "$COMMENT_ID" ]; then
             echo "Found existing comment ID: $COMMENT_ID. Editing..."
-            gh pr comment ${{ github.event.pull_request.number }} --edit-last $COMMENT_ID --body-file review_result.md
+            gh api \
+              --method PATCH \
+              /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+              -f body=@review_result.md
           else
             echo "No existing comment found. Creating a new one..."
             gh pr comment ${{ github.event.pull_request.number }} --body-file review_result.md
