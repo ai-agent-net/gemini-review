@@ -2,6 +2,10 @@ name: "Gemini AI PR Reviewer"
 description: "Full-cycle AI code review including checkout"
 author: "Val-d-emar"
 
+branding:
+  icon: 'code'
+  color: 'blue'
+  
 inputs:
   gemini_api_key:
     description: "API Key from Google AI Studio OR Service Account JSON for Vertex AI"
@@ -18,24 +22,32 @@ inputs:
     description: "Custom prompt for the AI"
     required: false
     default: "You are an expert software engineer. Review this git diff for bugs,
-      security, and style. Provide feedback in Markdown. If okay,
-      approve PR including the text 'RESUME: APPROVE' to end of your response."
+      security, and style. Provide feedback in Markdown. If okay, approve PR
+      including the text 'RESUME: APPROVE' to end of your response."
   review_language:
-    description: "Language for the AI (e.g. 'English', 'Spanish')"
+    description: "Language for the AI (e.g. 'English', 'Russian')"
     required: false
     default: "English"
   approval_required:
     description: "Require approval from the reviewer (uses --approve or --request-changes)"
     required: false
     default: "false"
+  comment_mode:
+    description: "For reviews (approval_required: true), 'replace' will delete old
+      reviews. For simple comments, it always tries to edit."
+    required: false
+    default: "new"
+  comment_title:
+    description: "A unique title to prepend to the review, used to find old comments
+      for editing."
+    required: false
+    default: "# 🤖 AI REVIEW"
 
 runs:
   using: "composite"
   steps:
     - name: Checkout Code
-      env:
-        GITHUB_TOKEN: ${{ inputs.inputs.github_token }}
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
         token: ${{ inputs.github_token }}
@@ -47,7 +59,7 @@ runs:
         credentials_json: "${{ inputs.gemini_api_key }}"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v4
       with:
         node-version: "24"
 
@@ -65,7 +77,8 @@ runs:
         GOOGLE_GENAI_USE_VERTEXAI: ${{ inputs.use_vertexapi_key }}
         GEMINI_API_KEY: ${{ inputs.use_vertexapi_key == 'false' && inputs.gemini_api_key || '' }}
       run: |
-        gemini prompt "${{ inputs.review_prompt }}. Use ${{ inputs.review_language }} language for answer." pr_diff.txt > review_result.md
+        gemini prompt "${{ inputs.review_prompt }}. Use ${{ inputs.review_language }} language for answer." pr_diff.txt > raw_review.md
+        echo -e "${{ inputs.comment_title }}\n\n$(cat raw_review.md)" > review_result.md
 
         if [ "${{ inputs.approval_required }}" == "true" ]; then
           if grep -iq "RESUME: APPROVE" review_result.md; then
@@ -76,32 +89,44 @@ runs:
         fi
       shell: bash
 
-    - name: Submit PR Review
+    - name: Submit Feedback to PR
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+      shell: bash
       run: |
+        # Определяем логин текущего пользователя (PAT или встроенный бот)
+        CURRENT_USER=$(gh api user -q .login 2>/dev/null || echo "github-actions[bot]")
+
+        # --- ВЕТКА 1: Требуется официальное ревью (Approve/Reject) ---
         if [ "${{ inputs.approval_required }}" == "true" ]; then
+          # Если включен режим 'replace', удаляем старые РЕВЬЮ
+          if [ "${{ inputs.comment_mode }}" == "replace" ]; then
+            REVIEW_IDS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews -q ".[] | select(.user.login == \"$CURRENT_USER\") | .id")
+            for ID in $REVIEW_IDS; do
+              echo "Deleting old review ID: $ID"
+              gh api -X DELETE repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$ID --silent
+            done
+          fi
+          
+          # Публикуем новое РЕВЬЮ
           RESUME=$(cat review_status.txt)
           if [ "$RESUME" == "APPROVE" ]; then
-            gh pr review ${{ github.event.pull_request.number }} \
-              -R ${{ github.repository }} \
-              --approve \
-              --body-file review_result.md
+            gh pr review --approve --body-file review_result.md
           else
-            gh pr review ${{ github.event.pull_request.number }} \
-              -R ${{ github.repository }} \
-              --request-changes \
-              --body-file review_result.md
+            gh pr review --request-changes --body-file review_result.md
           fi
-        else
-          gh pr review ${{ github.event.pull_request.number }} \
-            -R ${{ github.repository }} \
-            --comment \
-            --body-file review_result.md
-        fi
-      shell: bash
 
-branding:
-  icon: 'code'
-  color: 'blue'
-  
+        # --- ВЕТКА 2: Требуется только комментарий (без статуса) ---
+        else
+          # Ищем ID существующего КОММЕНТАРИЯ от нашего бота по заголовку
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments -q ".[] | select(.user.login == \"$CURRENT_USER\" and (.body | startswith(\"${{ inputs.comment_title }}\"))) | .id" | tail -1)
+          
+          # Если нашли - редактируем его, иначе - создаем новый
+          if [ -n "$COMMENT_ID" ]; then
+            echo "Found existing comment ID: $COMMENT_ID. Editing..."
+            gh pr comment ${{ github.event.pull_request.number }} --edit $COMMENT_ID --body-file review_result.md
+          else
+            echo "No existing comment found. Creating a new one..."
+            gh pr comment ${{ github.event.pull_request.number }} --body-file review_result.md
+          fi
+        fi
