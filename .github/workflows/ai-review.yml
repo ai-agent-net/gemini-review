@@ -2,11 +2,11 @@ name: Gemini AI Code Reviewer
 
 on:
   pull_request:
-    types: [review_requested, assigned]
+    types: [review_requested]
 
 jobs:
   review-code:
-    if: github.event.requested_reviewer.login == 'ai-agent-net' || github.event.assignee.login == 'ai-agent-net'
+    if: github.event.requested_reviewer.login == 'ai-agent-net'
     runs-on: ubuntu-latest
     
     permissions:
@@ -20,5 +20,5 @@ jobs:
         gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
         github_token: ${{ secrets.AI_AGENT_PAT }}
         review_language: "Russian"
-        approval_required: false
+        approval_required: "true"
         
