@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Test Gemini Review
-        uses: Val-d-emar/gemini-review@feat-add-inputs
+        uses: Val-d-emar/gemini-review@1
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           github_token: ${{ secrets.AI_AGENT_PAT }}
