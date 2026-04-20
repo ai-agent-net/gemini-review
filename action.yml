@@ -21,10 +21,12 @@ inputs:
   review_prompt:
     description: "Custom prompt for the AI"
     required: false
-    default:
-      "You are an expert software engineer. Review this git diff for bugs,
-      security, and style. Provide feedback in Markdown. If okay, approve PR
-      including the text 'RESUME: APPROVE' to end of your response."
+    default: >
+      You are an expert software engineer. Review this git diff for bugs, security, and style. 
+      Provide feedback in Markdown. 
+      IMPORTANT: Assume all infrastructure versions (like GitHub Actions @v4, @v6, etc.) are valid and exist; do not flag them as incorrect. 
+      Focus strictly on the logic, security, and quality of the code changes.
+      If okay, approve PR including the text 'RESUME: APPROVE' to end of your response.
   review_language:
     description: "Language for the AI (e.g. 'English', 'Russian')"
     required: false
@@ -38,7 +40,7 @@ inputs:
       "A unique title to prepend to the review, used to find old comments
       for editing."
     required: false
-    default: "# 🤖 AI Review"
+    default: "# 🤖 Gemini AI Code Review"
 
 runs:
   using: "composite"
@@ -77,9 +79,9 @@ runs:
         USER_LANG: ${{ inputs.review_language }}
       run: |
         FULL_PROMPT="Use ${USER_LANG} language for answer. ${USER_PROMPT}"
-        
+
         gemini prompt "$FULL_PROMPT" pr_diff.txt > raw_review.md
-        
+
         printf "%s\n\n" "${{ inputs.comment_title }}" > review_result.md
         cat raw_review.md >> review_result.md
 
@@ -99,11 +101,12 @@ runs:
       run: |
         # Определяем логин текущего пользователя (PAT или встроенный бот)
         CURRENT_USER=$(gh api user -q .login 2>/dev/null || echo "github-actions[bot]")
+        if [[ "$CURRENT_USER" == *"{"* ]]; then CURRENT_USER="github-actions[bot]"; fi
 
         # --- ВЕТКА 1: Требуется официальное ревью (Approve/Reject) ---
         if [ "${{ inputs.approval_required }}" == "true" ]; then
-          # Мы не удаляем старые ревью (DELETE запрещен API), просто постим новое
-          RESUME=$(cat review_status.txt)
+        # Мы не удаляем старые ревью (DELETE запрещен API), просто постим новое
+        RESUME=$(cat review_status.txt 2>/dev/null || echo "REJECT")
           if [ "$RESUME" == "APPROVE" ]; then
             gh pr review ${{ github.event.pull_request.number }} -R ${{ github.repository }} --approve --body-file review_result.md
           else
@@ -113,14 +116,14 @@ runs:
         # --- ВЕТКА 2: Простой комментарий (с поддержкой редактирования) ---
         else
           # Ищем ID старого комментария с учетом пагинации (до 1000 комментов)
-          COMMENT_ID=$(gh api --paginate repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments -q ".[] | select(.user.login == \"$CURRENT_USER\" and (.body | startswith(\"${{ inputs.comment_title }}\"))) | .id" | tail -1)
+          # Используем внешний jq с --arg, чтобы мусор в логине не ломал синтаксис
+          COMMENT_ID=$(gh api --paginate repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments | \
+            jq -r --arg u "$CURRENT_USER" --arg t "${{ inputs.comment_title }}" \
+            '.[] | select(.user.login == $u and (.body | startswith($t))) | .id' | tail -1)
           
-          if [ -n "$COMMENT_ID" ]; then
+          if [ -n "$COMMENT_ID" ] && [ "$COMMENT_ID" != "null" ]; then
             echo "Editing existing comment ID: $COMMENT_ID"
-            gh api \
-              --method PATCH \
-              /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
-              -F body=@review_result.md
+            gh api --method PATCH /repos/${{ github.repository }}/issues/comments/$COMMENT_ID -F body=@review_result.md
           else
             echo "Creating new comment..."
             gh pr comment ${{ github.event.pull_request.number }} -R ${{ github.repository }} --body-file review_result.md
