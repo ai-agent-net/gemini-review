@@ -1,6 +1,12 @@
 # Gemini AI PR Reviewer Action
 
+[🇷🇺 Русский](#русский) | [🇬🇧 English](#english)
+
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+<a name="english"></a>
+
+## 🇬🇧 English
 
 An automated AI-powered Code Reviewer for your GitHub Pull Requests using Google's Gemini Models via the official `gemini-cli`. This action works out of the box with both **Google AI Studio** (free tier API Keys) and **Google Cloud Vertex AI** (Enterprise Service Accounts).
 
@@ -61,6 +67,10 @@ jobs:
 This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
 
 ---
+
+<a name="русский"></a>
+
+## 🇷🇺 Русский
 
 Автоматизированный ИИ-ревьюер для ваших Pull Requests на GitHub, работающий на базе моделей Google Gemini через официальный `gemini-cli`. Экшен поддерживает как бесплатные API-ключи от **Google AI Studio**, так и Enterprise-авторизацию через сервисные аккаунты **Google Cloud Vertex AI**.
 
